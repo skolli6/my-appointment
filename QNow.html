@@ -1,0 +1,1431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QNow – Smart Queue System</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#F7F3EE;--surface:#FFFFFF;--surface2:#F0EBE4;
+  --teal:#0A3D35;--teal2:#155A4E;--teal3:#1E7A69;
+  --amber:#E8850A;--amber2:#F5A623;
+  --red:#D94040;--green:#1A8C5A;--purple:#6B3FA0;--admin:#1A1060;
+  --text:#1A1A1A;--text2:#555;--text3:#888;
+  --border:#DDD6CE;--shadow:0 4px 24px rgba(10,61,53,.10);
+  --r:14px;--r2:8px;
+}
+body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+.screen{display:none;min-height:100vh}
+.screen.active{display:flex;flex-direction:column}
+
+/* NAV */
+nav{background:var(--teal);padding:13px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;gap:10px}
+.logo{color:#fff;font-size:1.4rem;font-weight:900;letter-spacing:-1px;flex-shrink:0}
+.logo span{color:var(--amber2)}
+.nav-right{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:9px 18px;border-radius:var(--r2);font-family:inherit;font-size:.88rem;font-weight:600;cursor:pointer;border:none;transition:all .18s;letter-spacing:.2px;white-space:nowrap}
+.btn-primary{background:var(--amber);color:#fff}.btn-primary:hover{background:var(--amber2);transform:translateY(-1px)}
+.btn-teal{background:var(--teal);color:#fff}.btn-teal:hover{background:var(--teal2)}
+.btn-green{background:var(--green);color:#fff}.btn-green:hover{opacity:.85}
+.btn-purple{background:var(--purple);color:#fff}.btn-purple:hover{opacity:.85}
+.btn-ghost{background:transparent;color:var(--text2);border:2px solid var(--border)}.btn-ghost:hover{border-color:var(--teal);color:var(--teal)}
+.btn-danger{background:var(--red);color:#fff}.btn-danger:hover{opacity:.85}
+.btn-ghost-white{background:rgba(255,255,255,.15);color:#fff;border:none}.btn-ghost-white:hover{background:rgba(255,255,255,.25)}
+.btn-sm{padding:5px 12px;font-size:.8rem}
+.btn-lg{padding:14px 28px;font-size:1rem;border-radius:var(--r)}
+.btn-full{width:100%}
+.btn-admin{background:var(--admin);color:#fff}.btn-admin:hover{opacity:.85}
+.btn-amber{background:var(--amber);color:#fff}.btn-amber:hover{opacity:.85}
+
+/* ADMIN */
+.admin-nav{background:var(--admin)!important}
+.admin-badge{background:#E0E7FF;color:var(--admin);font-size:.7rem;font-weight:800;padding:3px 9px;border-radius:100px;letter-spacing:.5px}
+.admin-tab-bar{display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:20px;overflow-x:auto}
+.admin-tab{padding:10px 16px;font-family:inherit;font-size:.85rem;font-weight:600;cursor:pointer;border:none;background:none;color:var(--text3);border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;transition:all .18s}
+.admin-tab.active{color:var(--admin);border-bottom-color:var(--admin)}
+.admin-stat{background:var(--surface);border-radius:var(--r2);padding:16px;border:1px solid var(--border);text-align:center}
+.admin-stat .big{font-size:2rem;font-weight:800;font-family:'DM Mono',monospace;color:var(--admin)}
+.admin-stat .lbl{font-size:.7rem;color:var(--text3);font-weight:600;letter-spacing:.3px;text-transform:uppercase;margin-top:2px}
+.vendor-row{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border-radius:var(--r2);background:var(--surface2);margin-bottom:8px;border-left:3px solid transparent}
+.vendor-row.pending{background:#FEF9C3;border-left-color:var(--amber)}
+.vendor-row.approved{border-left-color:var(--green)}
+.vendor-row.suspended{background:#FEE2E2;border-left-color:var(--red)}
+.vendor-row-info{flex:1;min-width:0}
+.vendor-row-name{font-weight:700;font-size:.92rem}
+.vendor-row-meta{font-size:.78rem;color:var(--text3);margin-top:3px;line-height:1.5}
+.vendor-row-actions{display:flex;gap:5px;flex-wrap:wrap;padding-top:2px;flex-shrink:0}
+.plan-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:100px;font-size:.7rem;font-weight:700}
+.plan-free{background:#F0FDF4;color:#166534;border:1px solid #86EFAC}
+.plan-paid{background:#FFF7ED;color:#9A3412;border:1px solid #FDBA74}
+.edit-modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:520px){.edit-modal-grid{grid-template-columns:1fr}}
+
+/* HERO */
+.hero{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:60px 24px;background:linear-gradient(155deg,var(--teal) 0%,var(--teal3) 100%);position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/svg%3E")}
+.hero h1{font-size:clamp(2.4rem,6vw,4.2rem);font-weight:900;color:#fff;line-height:1.05;margin-bottom:14px;letter-spacing:-2px;position:relative}
+.hero h1 em{color:var(--amber2);font-style:normal}
+.hero p{font-size:1.05rem;color:rgba(255,255,255,.75);max-width:500px;margin-bottom:40px;line-height:1.7;position:relative}
+.hero-cards{display:flex;gap:18px;flex-wrap:wrap;justify-content:center;width:100%;max-width:580px;position:relative}
+.hero-card{background:rgba(255,255,255,.1);backdrop-filter:blur(14px);border:1.5px solid rgba(255,255,255,.2);border-radius:18px;padding:30px 24px;flex:1;min-width:210px;cursor:pointer;transition:all .22s;text-align:center}
+.hero-card:hover{background:rgba(255,255,255,.18);transform:translateY(-5px);border-color:var(--amber2)}
+.hero-card .icon{font-size:2.6rem;margin-bottom:12px}
+.hero-card h3{color:#fff;font-size:1.15rem;font-weight:700;margin-bottom:5px}
+.hero-card p{color:rgba(255,255,255,.6);font-size:.83rem;line-height:1.5}
+
+/* LAYOUT */
+.content{flex:1;padding:24px 18px;max-width:680px;margin:0 auto;width:100%}
+.content.wide{max-width:980px}
+
+/* CARD */
+.card{background:var(--surface);border-radius:var(--r);padding:22px;box-shadow:var(--shadow);border:1px solid var(--border);margin-bottom:16px}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;gap:10px;flex-wrap:wrap}
+.card-title{font-size:1.05rem;font-weight:700;color:var(--teal)}
+.section-title{font-size:1.35rem;font-weight:800;color:var(--teal);margin-bottom:5px;letter-spacing:-.4px}
+.section-sub{color:var(--text3);font-size:.88rem;margin-bottom:22px}
+
+/* FORMS */
+.form-group{margin-bottom:16px}
+label{display:block;font-size:.82rem;font-weight:600;color:var(--text2);margin-bottom:6px;letter-spacing:.2px}
+input,select,textarea{width:100%;padding:11px 13px;border:1.5px solid var(--border);border-radius:var(--r2);font-family:inherit;font-size:.92rem;color:var(--text);background:var(--surface);transition:border-color .18s;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--teal3)}
+input.pin-input{font-family:'DM Mono',monospace;font-size:1.8rem;text-align:center;letter-spacing:12px;font-weight:500}
+textarea{resize:vertical;min-height:72px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-hint{font-size:.76rem;color:var(--text3);margin-top:4px}
+.form-tabs{display:flex;border-bottom:2px solid var(--border);margin-bottom:22px}
+.tab-btn{padding:9px 18px;font-family:inherit;font-size:.88rem;font-weight:600;cursor:pointer;border:none;background:none;color:var(--text3);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .18s}
+.tab-btn.active{color:var(--teal);border-bottom-color:var(--teal)}
+
+/* SEARCH & FILTERS */
+.search-wrap{position:relative;margin-bottom:14px}
+.search-wrap input{padding-left:40px;font-size:.95rem}
+.search-icon{position:absolute;left:13px;top:50%;transform:translateY(-50%);font-size:1rem;pointer-events:none;opacity:.5}
+.cat-chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+.chip{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:100px;font-size:.8rem;font-weight:600;cursor:pointer;border:1.5px solid var(--border);background:var(--surface);color:var(--text2);transition:all .18s;white-space:nowrap}
+.chip:hover{border-color:var(--teal3);color:var(--teal)}
+.chip.active{background:var(--teal);border-color:var(--teal);color:#fff}
+.results-count{font-size:.82rem;color:var(--text3);margin-bottom:12px}
+
+/* BADGE */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:100px;font-size:.72rem;font-weight:700;letter-spacing:.3px}
+.badge-green{background:#D1FAE5;color:#065F46}
+.badge-amber{background:#FEF3C7;color:#92400E}
+.badge-red{background:#FEE2E2;color:#991B1B}
+.badge-purple{background:#EDE9FE;color:#5B21B6}
+.badge-gray{background:#F3F4F6;color:#4B5563}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block}
+.dot-green{background:#22C55E;animation:pulse 1.5s infinite}
+.dot-red{background:#EF4444}
+.dot-amber{background:#F59E0B;animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+/* TOKEN */
+.token-box{background:linear-gradient(135deg,var(--teal) 0%,var(--teal3) 100%);border-radius:18px;padding:30px 22px;text-align:center;color:#fff;position:relative;overflow:hidden}
+.token-box::before{content:'';position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M0 40L40 0H20L0 20M40 40V20L20 40'/%3E%3C/g%3E%3C/svg%3E")}
+.token-label{font-size:.75rem;font-weight:600;letter-spacing:2px;opacity:.65;text-transform:uppercase;margin-bottom:6px;position:relative}
+.token-number{font-family:'DM Mono',monospace;font-size:3.8rem;font-weight:500;line-height:1;letter-spacing:2px;color:var(--amber2);position:relative}
+.token-name{font-size:1rem;opacity:.85;margin-top:6px;position:relative;font-weight:600}
+.token-service{font-size:.82rem;opacity:.65;margin-top:3px;position:relative}
+.token-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:rgba(255,255,255,.12);border-radius:12px;overflow:hidden;margin-top:22px;position:relative}
+.token-stat{background:rgba(0,0,0,.18);padding:13px 6px;text-align:center}
+.token-stat .val{font-size:1.4rem;font-weight:700;font-family:'DM Mono',monospace;color:var(--amber2)}
+.token-stat .lbl{font-size:.67rem;opacity:.6;letter-spacing:.5px;margin-top:2px;text-transform:uppercase}
+
+/* QUEUE ITEMS */
+.queue-item{display:flex;align-items:flex-start;gap:12px;padding:13px 14px;border-radius:var(--r2);background:var(--surface2);margin-bottom:7px;transition:background .18s;border-left:3px solid transparent}
+.queue-item.current{background:#D1FAE5;border-left-color:var(--green)}
+.queue-item.notified{background:#FEF3C7;border-left-color:var(--amber)}
+.queue-item.walkin{border-left-color:var(--purple)}
+.q-num{font-family:'DM Mono',monospace;font-size:1.2rem;font-weight:500;color:var(--teal);min-width:44px;text-align:center;padding-top:2px}
+.q-info{flex:1;min-width:0}
+.q-name{font-weight:700;font-size:.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.q-sub{font-size:.78rem;color:var(--text3);font-family:'DM Mono',monospace;margin-top:2px}
+.q-time{font-size:.75rem;color:var(--text3);margin-top:3px;display:flex;gap:8px;flex-wrap:wrap}
+.q-actions{display:flex;gap:5px;flex-shrink:0;padding-top:2px}
+
+/* SERVICE CARD */
+.service-card{background:var(--surface);border-radius:var(--r);padding:18px;border:1.5px solid var(--border);margin-bottom:12px;cursor:pointer;transition:all .2s;display:flex;align-items:flex-start;gap:14px}
+.service-card:hover{border-color:var(--teal3);box-shadow:var(--shadow);transform:translateY(-2px)}
+.service-card.closed{opacity:.65}
+.service-icon{width:50px;height:50px;border-radius:12px;background:linear-gradient(135deg,var(--teal),var(--teal3));display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0}
+.service-info{flex:1;min-width:0}
+.service-name{font-size:1rem;font-weight:700;color:var(--teal);margin-bottom:2px}
+.service-desc{font-size:.8rem;color:var(--text2);margin-bottom:7px;line-height:1.4;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.service-meta{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.service-meta span{font-size:.76rem;color:var(--text3);display:flex;align-items:center;gap:3px}
+
+/* STEPS */
+.steps{display:flex;align-items:center;justify-content:center;gap:0;margin-bottom:26px}
+.step-circle{width:28px;height:28px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:.76rem;font-weight:700;color:var(--text3);background:var(--surface)}
+.step-circle.done{background:var(--teal);border-color:var(--teal);color:#fff}
+.step-circle.active{background:var(--amber);border-color:var(--amber);color:#fff}
+.step-line{width:36px;height:2px;background:var(--border)}
+.step-line.done{background:var(--teal)}
+
+/* DASHBOARD */
+.dash-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
+.dash-stat{background:var(--surface);border-radius:var(--r2);padding:14px;border:1px solid var(--border);text-align:center}
+.dash-stat .big{font-size:1.8rem;font-weight:800;font-family:'DM Mono',monospace;color:var(--teal)}
+.dash-stat .lbl{font-size:.7rem;color:var(--text3);font-weight:600;letter-spacing:.3px;margin-top:1px;text-transform:uppercase}
+.serving-card{background:linear-gradient(135deg,#065F46,#047857);border-radius:var(--r);padding:18px;color:#fff;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.serving-card .lbl{font-size:.7rem;opacity:.65;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px}
+.serving-card .val{font-size:1.8rem;font-weight:800;font-family:'DM Mono',monospace;color:#A7F3D0}
+.serving-card .cname{font-size:1rem;font-weight:700;margin-top:2px}
+
+/* WALK-IN MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;align-items:center;justify-content:center;padding:16px}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border-radius:var(--r);padding:26px;max-width:400px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25);max-height:90vh;overflow-y:auto}
+.modal h3{font-size:1.15rem;font-weight:800;color:var(--teal);margin-bottom:8px}
+.modal p{color:var(--text2);font-size:.88rem;line-height:1.6;margin-bottom:18px}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:6px}
+
+/* MISC */
+.notif-banner{background:var(--amber);color:#fff;padding:11px 18px;border-radius:var(--r2);display:flex;align-items:center;gap:10px;margin-bottom:14px;font-size:.85rem;font-weight:600;line-height:1.4}
+.notif-banner.green{background:var(--green)}
+.notif-banner.red{background:var(--red)}
+.notif-banner.purple{background:var(--purple)}
+.wa-msg{background:#25D366;border-radius:10px;padding:13px 15px;color:#fff;font-size:.85rem;line-height:1.55;position:relative;margin:10px 0}
+.wa-msg::before{content:'WhatsApp';font-size:.65rem;font-weight:700;letter-spacing:1px;opacity:.75;display:block;margin-bottom:5px;text-transform:uppercase}
+.wa-footer{font-size:.7rem;opacity:.7;margin-top:5px;text-align:right}
+.wa-toggle{display:flex;align-items:center;gap:9px;padding:11px 14px;background:#E8FAF0;border-radius:var(--r2);border:1.5px solid #86EFAC;margin-bottom:14px;font-size:.83rem;font-weight:600;color:#166534}
+.notif-perm{display:flex;align-items:center;gap:9px;padding:11px 14px;background:#EFF6FF;border-radius:var(--r2);border:1.5px solid #93C5FD;margin-bottom:14px;font-size:.83rem;font-weight:600;color:#1E40AF;cursor:pointer}
+.notif-perm:hover{background:#DBEAFE}
+.highlight-box{background:linear-gradient(135deg,#ECFDF5,#D1FAE5);border:1.5px solid #6EE7B7;border-radius:var(--r2);padding:14px}
+.progress-bar{height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;margin-top:8px}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--teal3),var(--amber));border-radius:3px;transition:width .5s}
+.empty-state{text-align:center;padding:40px 20px;color:var(--text3)}
+.empty-state .emoji{font-size:2.8rem;margin-bottom:10px}
+.empty-state p{font-size:.88rem;line-height:1.6}
+.divider{height:1px;background:var(--border);margin:18px 0}
+.walkin-pill{background:var(--purple);color:#fff;font-size:.68rem;font-weight:700;padding:2px 7px;border-radius:100px;letter-spacing:.3px;margin-left:5px}
+.dist-badge{display:inline-flex;align-items:center;gap:3px;background:#EFF6FF;color:#1D4ED8;font-size:.72rem;font-weight:700;padding:2px 8px;border-radius:100px;border:1px solid #BFDBFE}
+.nearme-active{background:var(--teal)!important;color:#fff!important;border-color:var(--teal)!important}
+.nearme-bar-inner{display:flex;align-items:center;gap:10px;background:#EFF6FF;border:1.5px solid #93C5FD;border-radius:var(--r2);padding:10px 14px;font-size:.83rem;font-weight:600;color:#1E40AF}
+.nearme-bar-inner.loading{background:#FEF3C7;border-color:#FCD34D;color:#92400E}
+.nearme-bar-inner.error{background:#FEE2E2;border-color:#FCA5A5;color:#991B1B}
+.toast{position:fixed;bottom:22px;right:20px;background:var(--teal);color:#fff;padding:13px 18px;border-radius:var(--r2);font-size:.85rem;font-weight:600;box-shadow:0 8px 32px rgba(10,61,53,.25);z-index:9999;transform:translateY(100px);transition:transform .3s;max-width:300px;line-height:1.5}
+.toast.show{transform:translateY(0)}
+
+@media(max-width:520px){
+  .form-row{grid-template-columns:1fr}
+  .dash-stats{grid-template-columns:1fr 1fr}
+  nav .logo{font-size:1.2rem}
+}
+</style>
+</head>
+<body>
+
+<!-- ══ HOME ══ -->
+<div id="screen-home" class="screen active">
+  <nav>
+    <div class="logo">Q<span>Now</span></div>
+    <div class="nav-right">
+      <button class="btn btn-ghost-white btn-sm" onclick="showScreen('screen-customer-login-pin')">🔐 My Token</button>
+      <button class="btn btn-ghost-white btn-sm" onclick="showScreen('screen-admin-login')" style="opacity:.55;font-size:.75rem">⚙ Admin</button>
+    </div>
+  </nav>
+  <div class="hero">
+    <h1>Queue <em>smarter,</em><br>wait less</h1>
+    <p>Virtual queuing for clinics, salons, banks, schools & more. Join from anywhere, get notified before your turn.</p>
+    <div class="hero-cards">
+      <div class="hero-card" onclick="showScreen('screen-vendor-auth')">
+        <div class="icon">🏪</div>
+        <h3>I'm a Vendor</h3>
+        <p>Register your service, manage queues & notify customers</p>
+      </div>
+      <div class="hero-card" onclick="showScreen('screen-customer-browse')">
+        <div class="icon">👤</div>
+        <h3>I'm a Customer</h3>
+        <p>Find services, join a queue & track your waiting time</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ VENDOR AUTH ══ -->
+<div id="screen-vendor-auth" class="screen">
+  <nav>
+    <div class="logo">Q<span>Now</span> <span style="opacity:.4;font-weight:400;font-size:.85rem">/ Vendor</span></div>
+    <button class="btn btn-ghost-white btn-sm" onclick="showScreen('screen-home')">← Home</button>
+  </nav>
+  <div class="content" style="padding-top:28px">
+    <div class="section-title">Vendor Portal</div>
+    <div class="section-sub">Manage your service & queue effortlessly</div>
+    <div class="card">
+      <div class="form-tabs">
+        <button class="tab-btn active" onclick="switchTab('login')">Login</button>
+        <button class="tab-btn" onclick="switchTab('register')">Register New Service</button>
+      </div>
+      <!-- LOGIN -->
+      <div id="tab-login">
+        <div class="form-group"><label>Service Name</label><input type="text" id="v-login-name" placeholder="e.g. City Dental Clinic"></div>
+        <div class="form-group"><label>Password</label><input type="password" id="v-login-pass" placeholder="Enter password"></div>
+        <button class="btn btn-teal btn-full btn-lg" onclick="vendorLogin()">Login to Dashboard →</button>
+        <div style="margin-top:12px;text-align:center;font-size:.8rem;color:var(--text3)">Demo: <strong>City Dental Clinic</strong> / <strong>demo123</strong></div>
+      </div>
+      <!-- REGISTER -->
+      <div id="tab-register" style="display:none">
+        <div class="form-row">
+          <div class="form-group"><label>Business Name *</label><input type="text" id="v-reg-name" placeholder="e.g. City Dental Clinic"></div>
+          <div class="form-group">
+            <label>Category *</label>
+            <select id="v-reg-cat">
+              <option value="">Select…</option>
+              <option value="🏥 Hospital">🏥 Hospital</option>
+              <option value="🦷 Clinic">🦷 Clinic</option>
+              <option value="🏛️ Govt Office">🏛️ Govt Office</option>
+              <option value="💈 Saloon">💈 Saloon</option>
+              <option value="💅 Beauty Clinic">💅 Beauty Clinic</option>
+              <option value="🏫 School">🏫 School</option>
+              <option value="🏦 Bank">🏦 Bank</option>
+              <option value="🍽️ Restaurant">🍽️ Restaurant</option>
+              <option value="🔧 Service Center">🔧 Service Center</option>
+              <option value="📦 Other">📦 Other</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group"><label>Description</label><textarea id="v-reg-desc" placeholder="Brief description of your service…"></textarea></div>
+        <div class="form-row">
+          <div class="form-group"><label>City *</label><input type="text" id="v-reg-city" placeholder="e.g. Hyderabad"><div class="form-hint">Used for city-based filtering</div></div>
+          <div class="form-group"><label>Area / Address *</label><input type="text" id="v-reg-loc" placeholder="e.g. MG Road, Banjara Hills"></div>
+        </div>
+        <div class="form-group">
+          <label>📍 Location Coordinates <span style="font-weight:400;color:var(--text3)">(for "Near Me" feature)</span></label>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <input type="number" id="v-reg-lat" placeholder="Latitude e.g. 17.3850" step="any" style="flex:1;min-width:130px">
+            <input type="number" id="v-reg-lng" placeholder="Longitude e.g. 78.4867" step="any" style="flex:1;min-width:130px">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="fillVendorLocation()" style="white-space:nowrap">📍 Use My Location</button>
+          </div>
+          <div class="form-hint">Click "Use My Location" to auto-fill, or enter manually from Google Maps</div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Opening Time *</label><input type="time" id="v-reg-open" value="09:00"></div>
+          <div class="form-group"><label>Closing Time *</label><input type="time" id="v-reg-close" value="18:00"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Avg. mins / customer</label><input type="number" id="v-reg-slot" value="15" min="1" max="120"><div class="form-hint">Used to estimate wait times</div></div>
+          <div class="form-group"><label>Service Icon (emoji)</label><input type="text" id="v-reg-icon" value="🏥" maxlength="2"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Password *</label><input type="password" id="v-reg-pass" placeholder="Create password"></div>
+          <div class="form-group"><label>Confirm Password *</label><input type="password" id="v-reg-pass2" placeholder="Repeat password"></div>
+        </div>
+        <button class="btn btn-primary btn-full btn-lg" onclick="vendorRegister()">Register & Open Dashboard →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ VENDOR DASHBOARD ══ -->
+<div id="screen-vendor-dashboard" class="screen">
+  <nav>
+    <div class="logo">Q<span>Now</span></div>
+    <div class="nav-right">
+      <span id="v-status-badge"></span>
+      <button class="btn btn-ghost-white btn-sm" id="v-toggle-btn" onclick="toggleVendorOpen()"></button>
+      <button class="btn btn-ghost-white btn-sm" onclick="vendorLogout()">Logout</button>
+    </div>
+  </nav>
+  <div class="content wide" style="padding-top:22px">
+    <div id="v-dash-header" style="margin-bottom:16px"></div>
+    <div class="dash-stats">
+      <div class="dash-stat"><div class="big" id="ds-waiting">0</div><div class="lbl">Waiting</div></div>
+      <div class="dash-stat"><div class="big" id="ds-served">0</div><div class="lbl">Served</div></div>
+      <div class="dash-stat"><div class="big" id="ds-walkins">0</div><div class="lbl">Walk-ins</div></div>
+      <div class="dash-stat"><div class="big" id="ds-wait-time">—</div><div class="lbl">Avg Wait</div></div>
+    </div>
+    <div id="v-current-serving"></div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">📋 Live Queue</div>
+        <div style="display:flex;gap:7px;flex-wrap:wrap">
+          <button class="btn btn-purple btn-sm" onclick="openWalkInModal()">🚶 Walk-in</button>
+          <button class="btn btn-green btn-sm" onclick="callNext()">▶ Next</button>
+          <button class="btn btn-sm btn-ghost" onclick="notifyAll()">🔔 Notify All</button>
+        </div>
+      </div>
+      <div id="v-queue-list"><div class="empty-state"><div class="emoji">🎉</div><p>Queue is empty</p></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ CUSTOMER BROWSE ══ -->
+<div id="screen-customer-browse" class="screen">
+  <nav>
+    <div class="logo">Q<span>Now</span></div>
+    <button class="btn btn-ghost-white btn-sm" onclick="showScreen('screen-home')">← Home</button>
+  </nav>
+  <div class="content" style="padding-top:22px">
+    <div class="section-title">Find a Service</div>
+    <div class="section-sub">Search, filter by city & category, or find what's nearest to you</div>
+
+    <!-- SEARCH ROW -->
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <div class="search-wrap" style="flex:1;margin-bottom:0">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="service-search" placeholder="Search name, area, category…" oninput="renderServices()" autocomplete="off">
+      </div>
+      <button class="btn btn-ghost btn-sm" id="nearme-btn" onclick="toggleNearMe()" style="flex-shrink:0;gap:5px;padding:0 14px">📍 Near Me</button>
+    </div>
+
+    <!-- CITY FILTER -->
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
+      <span style="font-size:.8rem;font-weight:600;color:var(--text3);white-space:nowrap">🏙 City:</span>
+      <select id="city-select" onchange="renderServices()" style="flex:1;padding:8px 12px;font-size:.88rem;border:1.5px solid var(--border);border-radius:var(--r2);font-family:inherit;background:var(--surface);color:var(--text);outline:none;cursor:pointer">
+        <option value="">All Cities</option>
+      </select>
+      <button class="btn btn-ghost btn-sm" id="city-clear-btn" onclick="clearCityFilter()" style="display:none;flex-shrink:0">✕ Clear</button>
+    </div>
+
+    <!-- NEAR ME STATUS BAR -->
+    <div id="nearme-bar" style="display:none;margin-bottom:12px"></div>
+
+    <!-- CATEGORIES -->
+    <div class="cat-chips" id="cat-chips"></div>
+    <div class="results-count" id="results-count"></div>
+    <div id="services-list"></div>
+  </div>
+</div>
+
+<!-- ══ CUSTOMER ENROLL ══ -->
+<div id="screen-customer-enroll" class="screen">
+  <nav>
+    <div class="logo">Q<span>Now</span></div>
+    <button class="btn btn-ghost-white btn-sm" onclick="showScreen('screen-customer-browse')">← Back</button>
+  </nav>
+  <div class="content" style="padding-top:22px">
+    <div class="steps" id="enroll-steps">
+      <div class="step"><div class="step-circle active" id="sc1">1</div></div>
+      <div class="step"><div class="step-line" id="sl1"></div><div class="step-circle" id="sc2">2</div></div>
+      <div class="step"><div class="step-line" id="sl2"></div><div class="step-circle" id="sc3">3</div></div>
+    </div>
+    <!-- Step 1 -->
+    <div id="enroll-step1">
+      <div class="card">
+        <div class="section-title" style="font-size:1.15rem">Join Queue</div>
+        <div id="enroll-service-info" style="margin:10px 0 18px"></div>
+        <div class="form-row">
+          <div class="form-group"><label>👤 Your Full Name *</label><input type="text" id="e-name" placeholder="e.g. Rahul Sharma"></div>
+          <div class="form-group"><label>📱 Mobile Number *</label><input type="tel" id="e-mobile" placeholder="+91 XXXXX XXXXX"></div>
+        </div>
+        <div class="wa-toggle"><span>✅</span> WhatsApp updates will be sent to this number</div>
+        <div class="notif-perm" onclick="requestNotifPermission()"><span>🔔</span><span id="notif-perm-text">Enable browser notifications for alerts</span></div>
+        <button class="btn btn-primary btn-full btn-lg" onclick="enrollStep2()">Continue →</button>
+      </div>
+    </div>
+    <!-- Step 2 -->
+    <div id="enroll-step2" style="display:none">
+      <div class="card">
+        <div class="section-title" style="font-size:1.15rem">Set Your PIN</div>
+        <div class="section-sub">4-digit PIN to check your status anytime</div>
+        <div class="form-group"><label>Create PIN</label><input type="password" class="pin-input" id="e-pin" maxlength="4" placeholder="····"></div>
+        <div class="form-group"><label>Confirm PIN</label><input type="password" class="pin-input" id="e-pin2" maxlength="4" placeholder="····"></div>
+        <button class="btn btn-primary btn-full btn-lg" onclick="enrollStep3()">Get My Token →</button>
+        <button class="btn btn-ghost btn-full" style="margin-top:10px" onclick="enrollStep1Back()">← Back</button>
+      </div>
+    </div>
+    <!-- Step 3 -->
+    <div id="enroll-step3" style="display:none">
+      <div id="wa-notification-box" style="margin-bottom:14px"></div>
+      <div class="token-box" id="customer-token-box"></div>
+      <div class="card" style="margin-top:14px">
+        <div class="card-title">📌 What happens next?</div>
+        <div style="margin-top:10px;font-size:.85rem;color:var(--text2);line-height:1.8">
+          ✔ Use your <strong>mobile + PIN</strong> to re-check status anytime<br>
+          ✔ Notified when <strong>3 people are ahead</strong><br>
+          ✔ Notified <strong>15 minutes before</strong> your turn<br>
+          ✔ Can <strong>extend your slot</strong> if needed
+        </div>
+        <button class="btn btn-teal btn-full" style="margin-top:16px" onclick="goToMyToken()">Track My Token →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ CUSTOMER TOKEN VIEW ══ -->
+<div id="screen-customer-token" class="screen">
+  <nav>
+    <div class="logo">Q<span>Now</span></div>
+    <div class="nav-right">
+      <button class="btn btn-ghost-white btn-sm" onclick="showScreen('screen-customer-browse')">Browse</button>
+      <button class="btn btn-ghost-white btn-sm" onclick="customerLogout()">Exit</button>
+    </div>
+  </nav>
+  <div class="content" style="padding-top:22px">
+    <div id="customer-status-banner"></div>
+    <div class="token-box" id="my-token-box" style="margin-bottom:14px"></div>
+    <div id="notify-actions" style="margin-bottom:14px"></div>
+    <div class="card">
+      <div class="card-title">⏱ Live Queue Status</div>
+      <div id="live-queue-status" style="margin-top:12px"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">🔔 Notification Settings</div>
+      <div style="margin-top:10px;font-size:.83rem;color:var(--text2);line-height:1.85">
+        <div>✅ Notify when 3 people ahead</div>
+        <div>✅ Notify 15 minutes before turn</div>
+        <div>Browser: <span id="notif-status-val" style="font-weight:600"></span></div>
+      </div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:10px" onclick="requestNotifPermission()">Enable Notifications</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ CUSTOMER PIN LOGIN ══ -->
+<div id="screen-customer-login-pin" class="screen">
+  <nav>
+    <div class="logo">Q<span>Now</span></div>
+    <button class="btn btn-ghost-white btn-sm" onclick="showScreen('screen-home')">← Home</button>
+  </nav>
+  <div class="content" style="padding-top:56px">
+    <div class="card">
+      <div class="section-title" style="font-size:1.15rem">🔐 Check My Token</div>
+      <div class="section-sub">Enter your details to see your queue status</div>
+      <div class="form-group"><label>Mobile Number</label><input type="tel" id="cl-mobile" placeholder="+91 XXXXX XXXXX"></div>
+      <div class="form-group"><label>4-Digit PIN</label><input type="password" class="pin-input" id="cl-pin" maxlength="4" placeholder="····"></div>
+      <button class="btn btn-teal btn-full btn-lg" onclick="customerPinLogin()">Check Status →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ WALK-IN MODAL ══ -->
+<div id="walkin-modal" class="modal-overlay">
+  <div class="modal">
+    <h3>🚶 Add Walk-in Customer</h3>
+    <p>Assign next available token to a walk-in customer at the counter.</p>
+    <div class="form-group"><label>Customer Name *</label><input type="text" id="wi-name" placeholder="e.g. Priya Reddy"></div>
+    <div class="form-group"><label>Mobile Number (optional)</label><input type="tel" id="wi-mobile" placeholder="+91 XXXXX XXXXX"><div class="form-hint">Leave blank if customer doesn't provide</div></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeWalkInModal()">Cancel</button>
+      <button class="btn btn-purple" onclick="confirmWalkIn()">🎫 Assign Token</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ EXTEND MODAL ══ -->
+<div id="extend-modal" class="modal-overlay">
+  <div class="modal">
+    <h3>⏰ Need More Time?</h3>
+    <p>Extend your slot by <strong>5 positions</strong> to get more time. Your updated position will be shown immediately.</p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeExtendModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmExtend()">Yes, Extend Slot</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ADMIN LOGIN ══ -->
+<div id="screen-admin-login" class="screen">
+  <nav class="admin-nav">
+    <div class="logo">Q<span>Now</span> <span style="opacity:.5;font-weight:400;font-size:.8rem">/ Admin</span></div>
+    <button class="btn btn-ghost-white btn-sm" onclick="showScreen('screen-home')">← Home</button>
+  </nav>
+  <div class="content" style="padding-top:64px">
+    <div class="card" style="border-top:4px solid var(--admin)">
+      <div style="text-align:center;margin-bottom:20px">
+        <div style="font-size:2.5rem">🛡️</div>
+        <div class="section-title" style="font-size:1.2rem;margin-top:8px">Super Admin Login</div>
+        <div class="section-sub" style="margin-bottom:0">Restricted access — authorised personnel only</div>
+      </div>
+      <div class="form-group"><label>Admin Username</label><input type="text" id="adm-user" placeholder="Enter admin username" autocomplete="off"></div>
+      <div class="form-group"><label>Admin Password</label><input type="password" id="adm-pass" placeholder="Enter admin password"></div>
+      <button class="btn btn-full btn-lg btn-admin" onclick="adminLogin()">Login as Super Admin →</button>
+      <div style="margin-top:14px;padding:10px 14px;background:#F0F9FF;border-radius:var(--r2);font-size:.78rem;color:#1E40AF;line-height:1.6">
+        🔒 Demo credentials: <strong>admin</strong> / <strong>qnow@2024</strong><br>Change these before going live!
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ADMIN DASHBOARD ══ -->
+<div id="screen-admin-dashboard" class="screen">
+  <nav class="admin-nav">
+    <div class="logo">Q<span>Now</span></div>
+    <div class="nav-right">
+      <span class="admin-badge">⚙ SUPER ADMIN</span>
+      <button class="btn btn-ghost-white btn-sm" onclick="adminLogout()">Logout</button>
+    </div>
+  </nav>
+  <div class="content wide" style="padding-top:22px">
+    <div class="section-title">Admin Dashboard</div>
+    <div class="section-sub">Platform-wide management & oversight</div>
+
+    <!-- STATS -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:22px" id="admin-stats-row"></div>
+
+    <!-- TABS -->
+    <div class="admin-tab-bar">
+      <button class="admin-tab active" onclick="adminTab('pending')">⏳ Pending Approval <span id="pending-count-badge" style="margin-left:4px"></span></button>
+      <button class="admin-tab" onclick="adminTab('vendors')">🏪 All Vendors</button>
+      <button class="admin-tab" onclick="adminTab('activity')">📊 Activity Log</button>
+      <button class="admin-tab" onclick="adminTab('settings')">⚙ Settings</button>
+    </div>
+    <div id="admin-panel-content"></div>
+  </div>
+</div>
+
+<!-- ══ ADMIN EDIT VENDOR MODAL ══ -->
+<div id="admin-edit-modal" class="modal-overlay">
+  <div class="modal" style="max-width:560px;border-top:4px solid var(--admin)">
+    <h3>✏️ Edit Vendor</h3>
+    <p style="margin-bottom:16px">Edit vendor details. Changes take effect immediately.</p>
+    <input type="hidden" id="ae-id">
+    <div class="edit-modal-grid">
+      <div class="form-group"><label>Business Name *</label><input type="text" id="ae-name" placeholder="Business name"></div>
+      <div class="form-group"><label>Category</label>
+        <select id="ae-cat">
+          <option value="🏥 Hospital">🏥 Hospital</option><option value="🦷 Clinic">🦷 Clinic</option>
+          <option value="🏛️ Govt Office">🏛️ Govt Office</option><option value="💈 Saloon">💈 Saloon</option>
+          <option value="💅 Beauty Clinic">💅 Beauty Clinic</option><option value="🏫 School">🏫 School</option>
+          <option value="🏦 Bank">🏦 Bank</option><option value="🍽️ Restaurant">🍽️ Restaurant</option>
+          <option value="🔧 Service Center">🔧 Service Center</option><option value="📦 Other">📦 Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label>Description</label><textarea id="ae-desc" rows="2"></textarea></div>
+    <div class="edit-modal-grid">
+      <div class="form-group"><label>City</label><input type="text" id="ae-city"></div>
+      <div class="form-group"><label>Address / Area</label><input type="text" id="ae-loc"></div>
+    </div>
+    <div class="edit-modal-grid">
+      <div class="form-group"><label>Opening Time</label><input type="time" id="ae-open"></div>
+      <div class="form-group"><label>Closing Time</label><input type="time" id="ae-close"></div>
+    </div>
+    <div class="edit-modal-grid">
+      <div class="form-group"><label>Avg. mins / customer</label><input type="number" id="ae-slot" min="1"></div>
+      <div class="form-group"><label>Service Icon</label><input type="text" id="ae-icon" maxlength="2"></div>
+    </div>
+    <div class="edit-modal-grid">
+      <div class="form-group"><label>Reset Password (leave blank to keep)</label><input type="text" id="ae-pass" placeholder="New password"></div>
+      <div class="form-group">
+        <label>Plan</label>
+        <select id="ae-plan">
+          <option value="free">Free (50 tokens / 1 month)</option>
+          <option value="paid">Paid ₹500/month</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Status</label>
+      <select id="ae-status">
+        <option value="approved">✅ Approved (Active)</option>
+        <option value="pending">⏳ Pending Approval</option>
+        <option value="suspended">🚫 Suspended</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeAdminEditModal()">Cancel</button>
+      <button class="btn btn-admin" onclick="saveAdminEdit()">💾 Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ADMIN CONFIRM MODAL ══ -->
+<div id="admin-confirm-modal" class="modal-overlay">
+  <div class="modal">
+    <h3 id="acm-title">Confirm Action</h3>
+    <p id="acm-body">Are you sure?</p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="gv('admin-confirm-modal').classList.remove('open')">Cancel</button>
+      <button class="btn btn-danger" id="acm-btn" onclick="">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════ CATEGORIES ═══════════════
+const ALL_CATS = ['All','🏥 Hospital','🦷 Clinic','🏛️ Govt Office','💈 Saloon','💅 Beauty Clinic','🏫 School','🏦 Bank','🍽️ Restaurant','🔧 Service Center','📦 Other'];
+let activeCategory = 'All';
+
+// ═══════════════ SUPER ADMIN CREDENTIALS (change before going live) ═══════════════
+const ADMIN_USER = 'admin';
+const ADMIN_PASS = 'qnow@2024';
+
+// ═══════════════ STATE ═══════════════
+let state = { vendors:[], currentVendor:null, currentCustomer:null, enrollingVendorId:null, pendingEnroll:{}, adminLogged:false, activityLog:[] };
+function save(){ try{ localStorage.setItem('qnow_state', JSON.stringify(state)); }catch(e){} }
+function load(){ try{ const s=localStorage.getItem('qnow_state'); if(s) state={...state,...JSON.parse(s)}; }catch(e){} }
+load();
+
+// Near Me state
+let userLocation = null;
+let nearMeActive = false;
+let activeAdminTab = 'pending';
+
+// ═══════════════ NAVIGATION ═══════════════
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+  if(id==='screen-customer-browse'){ populateCityDropdown(); renderCatChips(); renderServices(); }
+  if(id==='screen-vendor-dashboard') renderDashboard();
+  if(id==='screen-customer-token') renderMyToken();
+  if(id==='screen-customer-login-pin'){ gv('cl-mobile').value=''; gv('cl-pin').value=''; }
+  if(id==='screen-admin-dashboard') renderAdminDashboard();
+  if(id==='screen-admin-login'){ gv('adm-user').value=''; gv('adm-pass').value=''; }
+}
+
+// ═══════════════ TOAST ═══════════════
+function toast(msg,dur=3200){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),dur);
+}
+
+// ═══════════════ NOTIFICATIONS ═══════════════
+async function requestNotifPermission(){
+  if(!('Notification' in window)){toast('Notifications not supported in this browser');return;}
+  const p=await Notification.requestPermission();
+  updateNotifUI();
+  if(p==='granted') toast('✅ Browser notifications enabled!');
+  else toast('Notifications blocked — enable in browser settings');
+}
+function updateNotifUI(){
+  const el=gv('notif-status-val');
+  if(el){
+    const p=('Notification' in window)?Notification.permission:'unsupported';
+    el.textContent=p==='granted'?'✅ Enabled':p==='denied'?'❌ Blocked':'⚠ Not enabled';
+    el.style.color=p==='granted'?'var(--green)':p==='denied'?'var(--red)':'var(--amber)';
+  }
+  const pt=gv('notif-perm-text');
+  if(pt){ const p=('Notification' in window)?Notification.permission:'ns'; pt.textContent=p==='granted'?'✅ Browser notifications enabled':'🔔 Enable browser notifications for alerts'; }
+}
+function sendBrowserNotif(title,body){
+  if(Notification.permission==='granted') new Notification(title,{body,icon:"data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔔</text></svg>"});
+}
+
+// ═══════════════ VENDOR FUNCTIONS ═══════════════
+function switchTab(tab){
+  document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',(i===0&&tab==='login')||(i===1&&tab==='register')));
+  gv('tab-login').style.display=tab==='login'?'block':'none';
+  gv('tab-register').style.display=tab==='register'?'block':'none';
+}
+function fillVendorLocation(){
+  if(!navigator.geolocation){toast('Geolocation not supported');return;}
+  toast('📍 Getting your location…');
+  navigator.geolocation.getCurrentPosition(pos=>{
+    gv('v-reg-lat').value=pos.coords.latitude.toFixed(6);
+    gv('v-reg-lng').value=pos.coords.longitude.toFixed(6);
+    toast('✅ Coordinates filled!');
+  },()=>toast('❌ Could not get location — enter manually'));
+}
+function vendorRegister(){
+  const name=val('v-reg-name'),cat=val('v-reg-cat'),desc=val('v-reg-desc'),
+        city=val('v-reg-city').trim(),loc=val('v-reg-loc'),
+        open=val('v-reg-open'),close=val('v-reg-close'),slot=parseInt(val('v-reg-slot'))||15,
+        icon=val('v-reg-icon')||'🏪',pass=val('v-reg-pass'),pass2=val('v-reg-pass2'),
+        lat=parseFloat(val('v-reg-lat'))||null, lng=parseFloat(val('v-reg-lng'))||null;
+  if(!name||!loc||!city||!pass||!cat){toast('⚠ Please fill all required fields including City');return;}
+  if(pass!==pass2){toast('❌ Passwords do not match');return;}
+  if(state.vendors.find(v=>v.name.toLowerCase()===name.toLowerCase())){toast('⚠ Service name already exists');return;}
+  const vendor={id:Date.now().toString(),name,cat,desc,city,loc,lat,lng,open,close,slot,icon,pass,isOpen:false,status:'pending',plan:'free',freeTokensUsed:0,planStart:null,queue:[],served:0,walkins:0,lastToken:0,createdAt:new Date().toISOString()};
+  state.vendors.push(vendor);
+  state.currentVendor=vendor.id;
+  logActivity(`New vendor registered: ${name} (${city}) — awaiting admin approval`);
+  save(); toast('✅ Registered! Awaiting admin approval.'); showScreen('screen-vendor-dashboard');
+}
+function vendorLogin(){
+  const name=val('v-login-name'),pass=val('v-login-pass');
+  const vendor=state.vendors.find(v=>v.name.toLowerCase()===name.toLowerCase()&&v.pass===pass);
+  if(!vendor){toast('❌ Invalid credentials');return;}
+  state.currentVendor=vendor.id; save(); showScreen('screen-vendor-dashboard');
+}
+function vendorLogout(){ state.currentVendor=null; save(); showScreen('screen-home'); }
+function getVendor(id){ return state.vendors.find(v=>v.id===(id||state.currentVendor)); }
+
+function renderDashboard(){
+  const vendor=getVendor(); if(!vendor){showScreen('screen-vendor-auth');return;}
+  // Status banner
+  let statusBanner='';
+  if(vendor.status==='pending'||!vendor.status){
+    statusBanner=`<div class="notif-banner" style="background:#92400E;margin-bottom:16px">⏳ Your registration is <strong>pending admin approval</strong>. You'll be notified once approved. Queue management is disabled until then.</div>`;
+  } else if(vendor.status==='suspended'){
+    statusBanner=`<div class="notif-banner red" style="margin-bottom:16px">🚫 This service is <strong>suspended</strong> by admin. Please contact support.</div>`;
+  } else if(vendor.plan==='free'){
+    const tokensLeft=Math.max(0,50-(vendor.freeTokensUsed||0));
+    const daysLeft=vendor.planStart?Math.max(0,30-Math.floor((Date.now()-new Date(vendor.planStart))/86400000)):30;
+    statusBanner=`<div class="notif-banner" style="background:var(--teal2);margin-bottom:16px">🎁 Free Plan: <strong>${tokensLeft} tokens</strong> remaining · <strong>${daysLeft} days</strong> left. Upgrade to ₹500/month for unlimited.</div>`;
+  }
+  gv('v-dash-header').innerHTML=statusBanner+`<div class="section-title">${vendor.icon} ${vendor.name}</div><div style="color:var(--text3);font-size:.82rem">${vendor.cat} · ${vendor.city||''}${vendor.loc?', '+vendor.loc:''} · ${vendor.open}–${vendor.close}</div>`;
+  const isLive=vendor.status==='approved';
+  const badge=gv('v-status-badge');
+  badge.innerHTML=vendor.status==='pending'?'<span class="badge badge-amber">PENDING</span>':vendor.status==='suspended'?'<span class="badge badge-red">SUSPENDED</span>':vendor.isOpen?'<span class="badge badge-green"><span class="dot dot-green"></span>OPEN</span>':'<span class="badge badge-red">CLOSED</span>';
+  const toggleBtn=gv('v-toggle-btn');
+  toggleBtn.textContent=vendor.isOpen?'🔒 Close':'🔓 Open';
+  toggleBtn.disabled=!isLive;
+  toggleBtn.style.opacity=isLive?'1':'0.4';
+  const queue=vendor.queue.filter(q=>q.status==='waiting');
+  gv('ds-waiting').textContent=queue.length;
+  gv('ds-served').textContent=vendor.served||0;
+  gv('ds-walkins').textContent=vendor.walkins||0;
+  gv('ds-wait-time').textContent=queue.length?`${queue.length*vendor.slot}m`:'—';
+  renderCurrentServing(vendor);
+  renderQueueList(vendor);
+}
+
+function renderCurrentServing(vendor){
+  const cur=vendor.queue.find(q=>q.status==='serving');
+  const el=gv('v-current-serving');
+  if(!cur){el.innerHTML='';return;}
+  el.innerHTML=`<div class="serving-card">
+    <div>
+      <div class="lbl">Now Serving ${cur.isWalkIn?'<span class="walkin-pill">WALK-IN</span>':''}</div>
+      <div class="val">T-${cur.token}</div>
+      <div class="cname">${cur.name}</div>
+    </div>
+    <div style="text-align:right">
+      <div style="opacity:.7;font-size:.82rem">📱 ${cur.mobile||'—'}</div>
+      <button class="btn btn-sm" style="background:#A7F3D0;color:#065F46;margin-top:8px" onclick="markDone('${cur.id}')">✓ Mark Complete</button>
+    </div>
+  </div>`;
+}
+
+function renderQueueList(vendor){
+  const el=gv('v-queue-list');
+  const queue=vendor.queue.filter(q=>q.status==='waiting');
+  if(!queue.length){el.innerHTML='<div class="empty-state"><div class="emoji">🎉</div><p>No one waiting right now</p></div>';return;}
+  el.innerHTML=queue.map((q,i)=>{
+    const waitMins=(i+1)*vendor.slot;
+    const notified=q.notified3||q.notified15;
+    return `<div class="queue-item ${i===0?'current':''} ${notified?'notified':''} ${q.isWalkIn?'walkin':''}">
+      <div class="q-num">T-${q.token}</div>
+      <div class="q-info">
+        <div class="q-name">${q.name}${q.isWalkIn?'<span class="walkin-pill">WALK-IN</span>':''}
+          ${i===0?'<span class="badge badge-green" style="margin-left:6px">Up Next</span>':''}
+          ${notified?'<span class="badge badge-amber" style="margin-left:6px">Notified</span>':''}
+        </div>
+        <div class="q-sub">${q.mobile||'No mobile'}</div>
+        <div class="q-time"><span>⏱ ~${waitMins}m wait</span><span>Joined: ${timeAgo(q.joinedAt)}</span></div>
+      </div>
+      <div class="q-actions">
+        <button class="btn btn-sm btn-ghost" onclick="notifyCustomer('${q.id}')">🔔</button>
+        <button class="btn btn-sm btn-danger" onclick="removeFromQueue('${q.id}')">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleVendorOpen(){
+  const vendor=getVendor(); if(!vendor)return;
+  vendor.isOpen=!vendor.isOpen; save(); renderDashboard();
+  toast(vendor.isOpen?'✅ Service is now OPEN':'🔒 Service is now CLOSED');
+}
+function callNext(){
+  const vendor=getVendor(); if(!vendor)return;
+  if(vendor.queue.find(q=>q.status==='serving')){toast('⚠ Complete current serving first');return;}
+  const next=vendor.queue.find(q=>q.status==='waiting');
+  if(!next){toast('Queue is empty');return;}
+  next.status='serving'; next.calledAt=new Date().toISOString();
+  sendBrowserNotif('🔔 Your Turn!',`${next.name} — Token T-${next.token}: Please proceed`);
+  checkAndNotifyUpcoming(vendor);
+  save(); renderDashboard(); toast(`▶ Calling T-${next.token} — ${next.name}`);
+}
+function markDone(qid){
+  const vendor=getVendor();
+  const e=vendor.queue.find(q=>q.id===qid); if(!e)return;
+  e.status='done'; vendor.served=(vendor.served||0)+1;
+  checkAndNotifyUpcoming(vendor);
+  save(); renderDashboard(); toast('✅ Marked complete');
+}
+function removeFromQueue(qid){
+  const vendor=getVendor();
+  vendor.queue=vendor.queue.filter(q=>q.id!==qid);
+  save(); renderDashboard(); toast('Removed from queue');
+}
+function notifyCustomer(qid){
+  const vendor=getVendor();
+  const e=vendor.queue.find(q=>q.id===qid); if(!e)return;
+  e.notified15=true;
+  sendBrowserNotif('⏰ Almost Your Turn!',`${e.name} — Token T-${e.token}: ~15 minutes away`);
+  save(); renderDashboard(); toast('🔔 Notification sent');
+}
+function notifyAll(){
+  const vendor=getVendor();
+  const queue=vendor.queue.filter(q=>q.status==='waiting');
+  let cnt=0;
+  queue.forEach((q,i)=>{if(i<3){q.notified3=true;cnt++;}});
+  sendBrowserNotif('🔔 Queue Update',`Notified ${cnt} upcoming customers`);
+  save(); renderDashboard(); toast(`🔔 Notified ${cnt} customers`);
+}
+function checkAndNotifyUpcoming(vendor){
+  const queue=vendor.queue.filter(q=>q.status==='waiting');
+  queue.forEach((q,i)=>{
+    if(i<3&&!q.notified3){q.notified3=true;sendBrowserNotif('⚡ 3 Ahead!',`${q.name} (T-${q.token}): Only 3 people ahead`);}
+    if((i+1)*vendor.slot<=15&&!q.notified15){q.notified15=true;sendBrowserNotif('⏰ 15 Min Alert',`${q.name} (T-${q.token}): Your turn in ~15 mins`);}
+  });
+}
+
+// ═══════════════ WALK-IN ═══════════════
+function openWalkInModal(){ gv('wi-name').value=''; gv('wi-mobile').value=''; gv('walkin-modal').classList.add('open'); }
+function closeWalkInModal(){ gv('walkin-modal').classList.remove('open'); }
+function confirmWalkIn(){
+  const name=val('wi-name').trim();
+  if(!name){toast('⚠ Please enter customer name');return;}
+  const mobile=val('wi-mobile').trim()||'';
+  const vendor=getVendor();
+  const tokenNum=String((vendor.lastToken||0)+1).padStart(3,'0');
+  vendor.lastToken=(vendor.lastToken||0)+1;
+  const entry={
+    id:Date.now().toString(),name,mobile,token:tokenNum,pin:'',
+    vendorId:vendor.id,status:'waiting',isWalkIn:true,
+    joinedAt:new Date().toISOString(),notified3:false,notified15:false
+  };
+  vendor.queue.push(entry);
+  vendor.walkins=(vendor.walkins||0)+1;
+  save(); closeWalkInModal(); renderDashboard();
+  toast(`✅ Walk-in token T-${tokenNum} assigned to ${name}`);
+}
+
+// ═══════════════ CUSTOMER ENROLL ═══════════════
+function startEnroll(vendorId){
+  state.enrollingVendorId=vendorId; state.pendingEnroll={};
+  const vendor=getVendor(vendorId);
+  gv('enroll-service-info').innerHTML=`<div class="highlight-box"><strong>${vendor.icon} ${vendor.name}</strong><br><span style="font-size:.8rem;color:var(--text2)">${vendor.cat} · ${vendor.city}${vendor.loc?', '+vendor.loc:''} · ~${vendor.slot} min per customer</span></div>`;
+  setStep(1);
+  ['e-name','e-mobile','e-pin','e-pin2'].forEach(id=>gv(id).value='');
+  ['enroll-step2','enroll-step3'].forEach(id=>gv(id).style.display='none');
+  gv('enroll-step1').style.display='block';
+  updateNotifUI(); showScreen('screen-customer-enroll');
+}
+function setStep(n){
+  for(let i=1;i<=3;i++){
+    const c=gv('sc'+i);
+    c.className='step-circle'+(i<n?' done':i===n?' active':'');
+    c.textContent=i<n?'✓':i;
+  }
+  for(let i=1;i<=2;i++){const l=gv('sl'+i);if(l)l.className='step-line'+(i<n?' done':'');}
+}
+function enrollStep1Back(){ setStep(1); gv('enroll-step1').style.display='block'; gv('enroll-step2').style.display='none'; }
+function enrollStep2(){
+  const name=val('e-name').trim(), mobile=val('e-mobile').replace(/\s/g,'');
+  if(!name){toast('⚠ Please enter your name');return;}
+  if(!mobile||mobile.length<7){toast('⚠ Enter a valid mobile number');return;}
+  const vendor=getVendor(state.enrollingVendorId);
+  if(vendor.queue.find(q=>q.mobile===mobile&&q.status!=='done')){toast('⚠ This number is already in the queue. Use Check Token.');return;}
+  state.pendingEnroll={name,mobile};
+  setStep(2); gv('enroll-step1').style.display='none'; gv('enroll-step2').style.display='block';
+}
+function enrollStep3(){
+  const pin=val('e-pin'), pin2=val('e-pin2');
+  if(pin.length!==4||!/^\d{4}$/.test(pin)){toast('⚠ PIN must be exactly 4 digits');return;}
+  if(pin!==pin2){toast('❌ PINs do not match');return;}
+  const vendor=getVendor(state.enrollingVendorId);
+  const waitingCount=vendor.queue.filter(q=>q.status==='waiting').length;
+  const tokenNum=String((vendor.lastToken||0)+1).padStart(3,'0');
+  vendor.lastToken=(vendor.lastToken||0)+1;
+  const entry={
+    id:Date.now().toString(),
+    name:state.pendingEnroll.name,
+    mobile:state.pendingEnroll.mobile,
+    pin,token:tokenNum,vendorId:vendor.id,
+    status:'waiting',isWalkIn:false,
+    joinedAt:new Date().toISOString(),notified3:false,notified15:false
+  };
+  vendor.queue.push(entry);
+  state.currentCustomer={name:entry.name,mobile:entry.mobile,pin,tokenId:entry.id,vendorId:vendor.id};
+  save(); setStep(3);
+  gv('enroll-step2').style.display='none'; gv('enroll-step3').style.display='block';
+  renderCustomerTokenBox(entry,vendor,gv('customer-token-box'));
+  const waPos=waitingCount+1, waitMins=waPos*vendor.slot;
+  gv('wa-notification-box').innerHTML=`<div class="wa-msg">👋 Hello <strong>${entry.name}</strong>!<br>You've joined the queue at <strong>${vendor.name}</strong>.<br>Token: <strong>T-${entry.token}</strong> · Position: #${waPos}<br>Est. wait: ~${waitMins} min<br>Track anytime at QNow.<div class="wa-footer">Delivered · ${nowTime()}</div></div>`;
+  toast('🎉 You\'re in the queue!');
+  requestNotifPermission();
+}
+function goToMyToken(){ showScreen('screen-customer-token'); }
+
+function renderMyToken(){
+  const cc=state.currentCustomer;
+  if(!cc){showScreen('screen-customer-login-pin');return;}
+  const vendor=getVendor(cc.vendorId);
+  const entry=vendor?vendor.queue.find(q=>q.id===cc.tokenId):null;
+  if(!entry){gv('my-token-box').innerHTML='<div style="color:#fff;text-align:center;padding:20px">Token not found or expired</div>';return;}
+  const waiting=vendor.queue.filter(q=>q.status==='waiting');
+  const myPos=waiting.findIndex(q=>q.id===cc.tokenId)+1;
+  const isServing=entry.status==='serving', isDone=entry.status==='done';
+  renderCustomerTokenBox(entry,vendor,gv('my-token-box'),myPos,isServing,isDone);
+  const banner=gv('customer-status-banner');
+  if(isServing) banner.innerHTML='<div class="notif-banner green">🔔 It\'s YOUR TURN! Please proceed to the counter.</div>';
+  else if(isDone) banner.innerHTML='<div class="notif-banner">✅ Appointment complete. Thank you!</div>';
+  else if(entry.notified3) banner.innerHTML='<div class="notif-banner">⚡ Almost there — only a few people ahead of you!</div>';
+  else banner.innerHTML='';
+  const na=gv('notify-actions');
+  if(!isServing&&!isDone&&myPos>0) na.innerHTML=`<button class="btn btn-ghost btn-full" onclick="openExtendModal()">⏰ Can't make it? Extend my slot</button>`;
+  else na.innerHTML='';
+  const lqs=gv('live-queue-status');
+  const waitMins=myPos*vendor.slot;
+  lqs.innerHTML=`<div style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">
+    <span style="font-size:.85rem;color:var(--text2)">Your position</span>
+    <strong style="color:var(--teal)">#${myPos} of ${waiting.length}</strong>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" style="width:${myPos>0?Math.max(4,100-(myPos/Math.max(1,waiting.length)*100))+'%':'100%'}"></div></div>
+  <div style="margin-top:10px;font-size:.83rem;color:var(--text2)">Est. wait: <strong>${myPos>0?waitMins+' mins':'Your turn!'}</strong> · ${vendor.name}</div>`;
+  updateNotifUI();
+}
+
+function renderCustomerTokenBox(entry,vendor,el,myPos,isServing,isDone){
+  const waiting=vendor.queue.filter(q=>q.status==='waiting');
+  const pos=myPos||(waiting.findIndex(q=>q.id===entry.id)+1);
+  const waitMins=pos*vendor.slot;
+  el.innerHTML=`<div class="token-label">${vendor.icon} ${vendor.name}</div>
+    <div class="token-label" style="margin-top:2px">Your Token</div>
+    <div class="token-number">T-${entry.token}</div>
+    <div class="token-name">${entry.name}</div>
+    <div class="token-service">${vendor.cat} · ${vendor.city}${vendor.loc?', '+vendor.loc:''}</div>
+    <div class="token-stats">
+      <div class="token-stat"><div class="val">${isServing?'NOW':isDone?'✓':pos||'—'}</div><div class="lbl">Position</div></div>
+      <div class="token-stat"><div class="val">${isServing||isDone?'—':waitMins+'m'}</div><div class="lbl">Est. Wait</div></div>
+      <div class="token-stat"><div class="val">${waiting.length}</div><div class="lbl">In Queue</div></div>
+    </div>`;
+}
+
+function customerPinLogin(){
+  const mobile=val('cl-mobile').replace(/\s/g,''), pin=val('cl-pin');
+  let found=null, foundVendor=null;
+  state.vendors.forEach(vendor=>{
+    const e=vendor.queue.find(q=>q.mobile===mobile&&q.pin===pin&&q.status!=='done');
+    if(e){found=e;foundVendor=vendor;}
+  });
+  if(!found){toast('❌ No active token found for these details');return;}
+  state.currentCustomer={name:found.name,mobile,pin,tokenId:found.id,vendorId:foundVendor.id};
+  save(); showScreen('screen-customer-token');
+}
+function customerLogout(){ state.currentCustomer=null; save(); showScreen('screen-home'); }
+
+// ═══════════════ EXTEND SLOT ═══════════════
+function openExtendModal(){ gv('extend-modal').classList.add('open'); }
+function closeExtendModal(){ gv('extend-modal').classList.remove('open'); }
+function confirmExtend(){
+  const cc=state.currentCustomer; if(!cc){closeExtendModal();return;}
+  const vendor=getVendor(cc.vendorId);
+  const queue=vendor.queue.filter(q=>q.status==='waiting');
+  const myIdx=queue.findIndex(q=>q.id===cc.tokenId);
+  if(myIdx===-1){closeExtendModal();toast('Could not extend');return;}
+  const [entry]=queue.splice(myIdx,1);
+  queue.splice(Math.min(myIdx+5,queue.length),0,entry);
+  vendor.queue=[...vendor.queue.filter(q=>q.status!=='waiting'),...queue];
+  save(); closeExtendModal(); toast('✅ Slot extended by 5 positions');
+  renderMyToken();
+}
+
+// ═══════════════ CITY FILTER ═══════════════
+function populateCityDropdown(){
+  const sel=gv('city-select'); if(!sel)return;
+  const cities=[...new Set(state.vendors.map(v=>v.city).filter(Boolean))].sort();
+  const current=sel.value;
+  sel.innerHTML='<option value="">All Cities</option>'+cities.map(c=>`<option value="${c}" ${c===current?'selected':''}>${c}</option>`).join('');
+  gv('city-clear-btn').style.display=sel.value?'inline-flex':'none';
+}
+function clearCityFilter(){
+  const sel=gv('city-select'); if(sel) sel.value='';
+  gv('city-clear-btn').style.display='none';
+  renderServices();
+}
+
+// ═══════════════ NEAR ME ═══════════════
+function haversine(lat1,lng1,lat2,lng2){
+  const R=6371, dLat=(lat2-lat1)*Math.PI/180, dLng=(lng2-lng1)*Math.PI/180;
+  const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+function fmtDist(km){
+  return km<1?`${Math.round(km*1000)}m away`:km<10?`${km.toFixed(1)} km away`:`${Math.round(km)} km away`;
+}
+function toggleNearMe(){
+  if(nearMeActive){ disableNearMe(); return; }
+  const bar=gv('nearme-bar');
+  bar.style.display='block';
+  bar.innerHTML='<div class="nearme-bar-inner loading">⏳ Getting your location…</div>';
+  if(!navigator.geolocation){ bar.innerHTML='<div class="nearme-bar-inner error">❌ Geolocation not supported by your browser</div>'; return; }
+  navigator.geolocation.getCurrentPosition(
+    pos=>{
+      userLocation={lat:pos.coords.latitude, lng:pos.coords.longitude};
+      nearMeActive=true;
+      gv('nearme-btn').classList.add('nearme-active');
+      bar.innerHTML=`<div class="nearme-bar-inner">📍 Showing services sorted by distance from your location &nbsp;<button class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:.75rem" onclick="disableNearMe()">✕ Turn Off</button></div>`;
+      renderServices();
+    },
+    err=>{
+      bar.innerHTML=`<div class="nearme-bar-inner error">❌ Location access denied. Please allow location in your browser settings.</div>`;
+    },
+    {timeout:10000, maximumAge:60000}
+  );
+}
+function disableNearMe(){
+  nearMeActive=false; userLocation=null;
+  gv('nearme-btn').classList.remove('nearme-active');
+  const bar=gv('nearme-bar'); if(bar) bar.style.display='none';
+  renderServices();
+}
+
+// ═══════════════ SEARCH & BROWSE ═══════════════
+function renderCatChips(){
+  const el=gv('cat-chips'); if(!el)return;
+  el.innerHTML=ALL_CATS.map(c=>`<div class="chip ${activeCategory===c?'active':''}" onclick="selectCat('${c}')">${c}</div>`).join('');
+}
+function selectCat(cat){ activeCategory=cat; renderCatChips(); renderServices(); }
+
+function renderServices(){
+  const el=gv('services-list'); if(!el)return;
+  const q=(gv('service-search')?gv('service-search').value:'').toLowerCase().trim();
+  const selectedCity=(gv('city-select')?gv('city-select').value:'');
+  const clearBtn=gv('city-clear-btn');
+  if(clearBtn) clearBtn.style.display=selectedCity?'inline-flex':'none';
+
+  let vendors=[...state.vendors];
+
+  // city filter
+  if(selectedCity) vendors=vendors.filter(v=>(v.city||'')===selectedCity);
+  // category filter
+  if(activeCategory!=='All') vendors=vendors.filter(v=>v.cat===activeCategory);
+  // text search
+  if(q) vendors=vendors.filter(v=>
+    v.name.toLowerCase().includes(q)||
+    (v.city||'').toLowerCase().includes(q)||
+    (v.loc||'').toLowerCase().includes(q)||
+    (v.cat||'').toLowerCase().includes(q)||
+    (v.desc||'').toLowerCase().includes(q)
+  );
+
+  // near me: attach distance, sort by it
+  if(nearMeActive && userLocation){
+    vendors=vendors.map(v=>{
+      const dist=(v.lat&&v.lng)?haversine(userLocation.lat,userLocation.lng,v.lat,v.lng):null;
+      return {...v, _dist:dist};
+    });
+    const withDist=vendors.filter(v=>v._dist!==null).sort((a,b)=>a._dist-b._dist);
+    const noDist=vendors.filter(v=>v._dist===null);
+    vendors=[...withDist,...noDist];
+  }
+
+  const rc=gv('results-count');
+  if(rc){
+    let label=vendors.length?`${vendors.length} service${vendors.length>1?'s':''} found`:'';
+    if(nearMeActive && userLocation && vendors.length) label+=' · sorted by distance';
+    rc.textContent=label;
+  }
+
+  if(!vendors.length){
+    const hasFilter=q||selectedCity||activeCategory!=='All';
+    el.innerHTML=`<div class="empty-state"><div class="emoji">${hasFilter?'🔍':'🏪'}</div><p>${hasFilter?'No services match your filters.<br>Try adjusting the city, category, or search term.':'No services registered yet.<br>Ask a vendor to register on QNow.'}</p>${!hasFilter?`<button class="btn btn-teal" style="margin-top:14px" onclick="showScreen('screen-vendor-auth')">Register a Service</button>`:''}</div>`;
+    return;
+  }
+
+  el.innerHTML=vendors.map(v=>{
+    const waiting=v.queue.filter(q=>q.status==='waiting').length;
+    const serving=v.queue.find(q=>q.status==='serving');
+    const waitMins=(waiting+(serving?1:0))*v.slot;
+    const distHtml=v._dist!=null?`<span class="dist-badge">📍 ${fmtDist(v._dist)}</span>`:'';
+    return `<div class="service-card ${v.isOpen?'':'closed'}" onclick="${v.isOpen?`startEnroll('${v.id}')`:``}">
+      <div class="service-icon">${v.icon}</div>
+      <div class="service-info">
+        <div class="service-name">${v.name} ${distHtml}</div>
+        <div class="service-desc">${v.desc||v.cat||'Professional service'}</div>
+        <div class="service-meta">
+          <span>${v.isOpen?'<span class="dot dot-green"></span> Open':'<span class="dot dot-red"></span> Closed'}</span>
+          <span>⏱ ~${waitMins}m</span>
+          <span>👥 ${waiting} waiting</span>
+          <span>🏙 ${v.city||''}</span>
+          <span>📍 ${v.loc||''}</span>
+          <span>${v.cat}</span>
+        </div>
+      </div>
+      ${!v.isOpen?'<span class="badge badge-red" style="flex-shrink:0;margin-top:2px">Closed</span>':''}
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════ UTILS ═══════════════
+function gv(id){ return document.getElementById(id); }
+function val(id){ return (gv(id)||{}).value||''; }
+function nowTime(){ return new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}); }
+function timeAgo(iso){
+  const diff=Math.floor((Date.now()-new Date(iso))/60000);
+  if(diff<1) return 'just now'; if(diff<60) return `${diff}m ago`;
+  return `${Math.floor(diff/60)}h ago`;
+}
+
+// ═══════════════ SEED DEMO DATA ═══════════════
+function seedDemo(){
+  if(state.vendors.length) return;
+  const now=new Date().toISOString();
+  state.vendors=[
+    {id:'d1',name:'City Dental Clinic',cat:'🦷 Clinic',desc:'Expert dental care — fillings, braces, root canals & more',city:'Hyderabad',loc:'MG Road, Abids',lat:17.3911,lng:78.4745,open:'09:00',close:'18:00',slot:20,icon:'🦷',pass:'demo123',isOpen:true,status:'approved',plan:'free',freeTokensUsed:4,planStart:now,served:3,walkins:1,lastToken:4,createdAt:now,queue:[
+      {id:'q1',name:'Arjun Mehta',mobile:'+919876543210',pin:'1234',token:'001',vendorId:'d1',status:'serving',isWalkIn:false,joinedAt:new Date(Date.now()-60*60000).toISOString(),notified3:true,notified15:true,calledAt:new Date().toISOString()},
+      {id:'q2',name:'Priya Reddy',mobile:'+919876543211',pin:'5678',token:'002',vendorId:'d1',status:'waiting',isWalkIn:false,joinedAt:new Date(Date.now()-40*60000).toISOString(),notified3:true,notified15:false},
+      {id:'q3',name:'Walk-in #3',mobile:'',pin:'',token:'003',vendorId:'d1',status:'waiting',isWalkIn:true,joinedAt:new Date(Date.now()-25*60000).toISOString(),notified3:false,notified15:false},
+      {id:'q4',name:'Sanjay Kumar',mobile:'+919876543212',pin:'9012',token:'004',vendorId:'d1',status:'waiting',isWalkIn:false,joinedAt:new Date(Date.now()-10*60000).toISOString(),notified3:false,notified15:false},
+    ]},
+    {id:'d2',name:'Style Hub Saloon',cat:'💈 Saloon',desc:'Haircuts, styling, colouring & grooming for men & women',city:'Hyderabad',loc:'Banjara Hills',lat:17.4138,lng:78.4483,open:'10:00',close:'20:00',slot:30,icon:'💈',pass:'style123',isOpen:true,status:'approved',plan:'paid',freeTokensUsed:50,planStart:now,served:5,walkins:2,lastToken:2,createdAt:now,queue:[
+      {id:'q5',name:'Vikram Nair',mobile:'+919999888877',pin:'4321',token:'001',vendorId:'d2',status:'waiting',isWalkIn:false,joinedAt:new Date(Date.now()-15*60000).toISOString(),notified3:false,notified15:false},
+      {id:'q6',name:'Walk-in',mobile:'',pin:'',token:'002',vendorId:'d2',status:'waiting',isWalkIn:true,joinedAt:new Date(Date.now()-5*60000).toISOString(),notified3:false,notified15:false},
+    ]},
+    {id:'d3',name:'Arogya Hospital OPD',cat:'🏥 Hospital',desc:'General OPD, specialists, diagnostics & emergency care',city:'Hyderabad',loc:'Secunderabad',lat:17.4399,lng:78.4983,open:'08:00',close:'21:00',slot:15,icon:'🏥',pass:'hosp123',isOpen:true,status:'approved',plan:'free',freeTokensUsed:12,planStart:now,served:12,walkins:4,lastToken:5,createdAt:now,queue:[
+      {id:'q7',name:'Meena Iyer',mobile:'+918888777766',pin:'2345',token:'003',vendorId:'d3',status:'waiting',isWalkIn:false,joinedAt:new Date(Date.now()-20*60000).toISOString(),notified3:false,notified15:false},
+    ]},
+    {id:'d4',name:'RTO License Office',cat:'🏛️ Govt Office',desc:'Driving licence, vehicle registration & renewal services',city:'Hyderabad',loc:'Begumpet',lat:17.4399,lng:78.4645,open:'10:00',close:'17:00',slot:25,icon:'🏛️',pass:'rto123',isOpen:false,status:'pending',plan:'free',freeTokensUsed:0,planStart:null,served:0,walkins:0,lastToken:0,createdAt:now,queue:[]},
+    {id:'d5',name:'Glow Beauty Clinic',cat:'💅 Beauty Clinic',desc:'Facials, skin treatments, waxing & bridal packages',city:'Hyderabad',loc:'Jubilee Hills',lat:17.4310,lng:78.4085,open:'09:30',close:'19:30',slot:45,icon:'💅',pass:'glow123',isOpen:true,status:'approved',plan:'free',freeTokensUsed:1,planStart:now,served:2,walkins:0,lastToken:1,createdAt:now,queue:[
+      {id:'q8',name:'Ananya Singh',mobile:'+917777666655',pin:'6789',token:'001',vendorId:'d5',status:'waiting',isWalkIn:false,joinedAt:new Date(Date.now()-30*60000).toISOString(),notified3:false,notified15:false},
+    ]},
+    {id:'d6',name:'Sunshine English School',cat:'🏫 School',desc:'Admissions office — new enrollments & TC requests',city:'Chennai',loc:'Anna Nagar',lat:13.0849,lng:80.2101,open:'09:00',close:'16:00',slot:20,icon:'🏫',pass:'school123',isOpen:true,status:'pending',plan:'free',freeTokensUsed:0,planStart:null,served:0,walkins:0,lastToken:0,createdAt:now,queue:[]},
+    {id:'d7',name:'Apollo Clinic',cat:'🦷 Clinic',desc:'Multi-speciality clinic — GP, dermatology & ENT',city:'Chennai',loc:'T Nagar',lat:13.0418,lng:80.2341,open:'08:30',close:'20:00',slot:15,icon:'🏥',pass:'apollo123',isOpen:true,status:'approved',plan:'free',freeTokensUsed:9,planStart:now,served:9,walkins:3,lastToken:6,createdAt:now,queue:[
+      {id:'q10',name:'Deepa Krishnan',mobile:'+919444555666',pin:'2222',token:'005',vendorId:'d7',status:'waiting',isWalkIn:false,joinedAt:new Date(Date.now()-8*60000).toISOString(),notified3:false,notified15:false},
+    ]},
+    {id:'d8',name:'SBI Main Branch',cat:'🏦 Bank',desc:'Account services, loans, lockers & Forex',city:'Mumbai',loc:'Fort, Churchgate',lat:18.9353,lng:72.8355,open:'10:00',close:'16:00',slot:10,icon:'🏦',pass:'sbi123',isOpen:true,status:'approved',plan:'paid',freeTokensUsed:50,planStart:now,served:20,walkins:5,lastToken:8,createdAt:now,queue:[
+      {id:'q11',name:'Mohit Shah',mobile:'+919777888999',pin:'3333',token:'006',vendorId:'d8',status:'waiting',isWalkIn:false,joinedAt:new Date(Date.now()-5*60000).toISOString(),notified3:false,notified15:false},
+    ]},
+  ];
+  if(!state.activityLog) state.activityLog=[];
+  state.activityLog=[
+    {time:new Date(Date.now()-2*3600000).toISOString(),msg:'Vendor approved: City Dental Clinic'},
+    {time:new Date(Date.now()-5*3600000).toISOString(),msg:'New vendor registered: RTO License Office (Hyderabad)'},
+    {time:new Date(Date.now()-24*3600000).toISOString(),msg:'Vendor approved: Style Hub Saloon'},
+  ];
+  save();
+}
+seedDemo();
+
+// ═══════════════ ACTIVITY LOG ═══════════════
+function logActivity(msg){
+  if(!state.activityLog) state.activityLog=[];
+  state.activityLog.unshift({time:new Date().toISOString(),msg});
+  if(state.activityLog.length>100) state.activityLog=state.activityLog.slice(0,100);
+}
+
+// ═══════════════ SUPER ADMIN FUNCTIONS ═══════════════
+function adminLogin(){
+  const u=val('adm-user').trim(), p=val('adm-pass');
+  if(u===ADMIN_USER&&p===ADMIN_PASS){
+    state.adminLogged=true; save(); showScreen('screen-admin-dashboard');
+  } else { toast('❌ Invalid admin credentials'); }
+}
+function adminLogout(){ state.adminLogged=false; save(); showScreen('screen-home'); }
+
+function adminTab(tab){
+  activeAdminTab=tab;
+  document.querySelectorAll('.admin-tab').forEach((b,i)=>{
+    const tabs=['pending','vendors','activity','settings'];
+    b.classList.toggle('active',tabs[i]===tab);
+  });
+  renderAdminPanel();
+}
+
+function renderAdminDashboard(){
+  if(!state.adminLogged){showScreen('screen-admin-login');return;}
+  const vendors=state.vendors;
+  const pending=vendors.filter(v=>v.status==='pending'||!v.status);
+  const approved=vendors.filter(v=>v.status==='approved');
+  const paid=vendors.filter(v=>v.plan==='paid');
+  const totalQueued=vendors.reduce((a,v)=>a+v.queue.filter(q=>q.status==='waiting').length,0);
+  gv('admin-stats-row').innerHTML=`
+    <div class="admin-stat"><div class="big">${vendors.length}</div><div class="lbl">Total Vendors</div></div>
+    <div class="admin-stat"><div class="big" style="color:var(--amber)">${pending.length}</div><div class="lbl">Pending</div></div>
+    <div class="admin-stat"><div class="big" style="color:var(--green)">${paid.length}</div><div class="lbl">Paid Plans</div></div>
+    <div class="admin-stat"><div class="big">${totalQueued}</div><div class="lbl">Live Queuing</div></div>`;
+  const pb=gv('pending-count-badge');
+  if(pb) pb.innerHTML=pending.length?`<span style="background:var(--red);color:#fff;border-radius:100px;font-size:.68rem;padding:1px 7px;font-weight:700">${pending.length}</span>`:'';
+  renderAdminPanel();
+}
+
+function renderAdminPanel(){
+  const el=gv('admin-panel-content'); if(!el)return;
+  if(activeAdminTab==='pending') renderAdminPending(el);
+  else if(activeAdminTab==='vendors') renderAdminVendors(el);
+  else if(activeAdminTab==='activity') renderAdminActivity(el);
+  else if(activeAdminTab==='settings') renderAdminSettings(el);
+}
+
+function renderAdminPending(el){
+  const pending=state.vendors.filter(v=>v.status==='pending'||!v.status);
+  if(!pending.length){el.innerHTML='<div class="empty-state"><div class="emoji">✅</div><p>No pending approvals — all vendors reviewed!</p></div>';return;}
+  el.innerHTML=pending.map(v=>`
+    <div class="vendor-row pending">
+      <div style="font-size:1.6rem;flex-shrink:0">${v.icon}</div>
+      <div class="vendor-row-info">
+        <div class="vendor-row-name">${v.name}</div>
+        <div class="vendor-row-meta">${v.cat} · <strong>${v.city}</strong>, ${v.loc}<br>Registered: ${dateStr(v.createdAt)} · Slot: ${v.slot} min</div>
+      </div>
+      <div class="vendor-row-actions">
+        <button class="btn btn-green btn-sm" onclick="approveVendor('${v.id}')">✅ Approve</button>
+        <button class="btn btn-ghost btn-sm" onclick="openAdminEdit('${v.id}')">✏️ Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="rejectVendor('${v.id}')">✕ Reject</button>
+      </div>
+    </div>`).join('');
+}
+
+function renderAdminVendors(el){
+  const vendors=state.vendors;
+  if(!vendors.length){el.innerHTML='<div class="empty-state"><div class="emoji">🏪</div><p>No vendors yet</p></div>';return;}
+  const cities=[...new Set(vendors.map(v=>v.city).filter(Boolean))];
+  let filterHtml=`<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
+    <select id="adm-city-filter" onchange="renderAdminDashboard()" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:var(--r2);font-family:inherit;font-size:.85rem;background:var(--surface)">
+      <option value="">All Cities</option>${cities.map(c=>`<option value="${c}">${c}</option>`).join('')}
+    </select>
+    <select id="adm-status-filter" onchange="renderAdminDashboard()" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:var(--r2);font-family:inherit;font-size:.85rem;background:var(--surface)">
+      <option value="">All Status</option><option value="approved">Approved</option><option value="pending">Pending</option><option value="suspended">Suspended</option>
+    </select>
+  </div>`;
+  const cf=gv('adm-city-filter'), sf=gv('adm-status-filter');
+  let list=[...vendors];
+  if(cf&&cf.value) list=list.filter(v=>v.city===cf.value);
+  if(sf&&sf.value) list=list.filter(v=>(v.status||'pending')===sf.value);
+  el.innerHTML=filterHtml+list.map(v=>{
+    const qLen=v.queue.filter(q=>q.status==='waiting').length;
+    const tokensLeft=Math.max(0,50-(v.freeTokensUsed||0));
+    const statusBadge=v.status==='approved'?'<span class="badge badge-green">Approved</span>':v.status==='suspended'?'<span class="badge badge-red">Suspended</span>':'<span class="badge badge-amber">Pending</span>';
+    const planBadge=v.plan==='paid'?'<span class="plan-badge plan-paid">₹500/mo</span>':`<span class="plan-badge plan-free">Free · ${tokensLeft} left</span>`;
+    return `<div class="vendor-row ${v.status||'pending'}">
+      <div style="font-size:1.5rem;flex-shrink:0">${v.icon}</div>
+      <div class="vendor-row-info">
+        <div class="vendor-row-name">${v.name} ${statusBadge} ${planBadge}</div>
+        <div class="vendor-row-meta">${v.cat} · <strong>${v.city}</strong>, ${v.loc} · ${v.open}–${v.close}<br>Queue: ${qLen} waiting · Served: ${v.served||0} · Walk-ins: ${v.walkins||0}</div>
+      </div>
+      <div class="vendor-row-actions">
+        <button class="btn btn-ghost btn-sm" onclick="openAdminEdit('${v.id}')">✏️ Edit</button>
+        ${v.status==='approved'?`<button class="btn btn-danger btn-sm" onclick="suspendVendor('${v.id}')">🚫 Suspend</button>`:''}
+        ${v.status==='suspended'?`<button class="btn btn-green btn-sm" onclick="approveVendor('${v.id}')">✅ Reinstate</button>`:''}
+        ${v.status==='pending'?`<button class="btn btn-green btn-sm" onclick="approveVendor('${v.id}')">✅ Approve</button>`:''}
+        <button class="btn btn-danger btn-sm" onclick="deleteVendor('${v.id}')">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderAdminActivity(el){
+  const log=(state.activityLog||[]);
+  if(!log.length){el.innerHTML='<div class="empty-state"><div class="emoji">📋</div><p>No activity logged yet</p></div>';return;}
+  el.innerHTML=`<div style="font-size:.8rem;color:var(--text3);margin-bottom:10px">${log.length} recent events</div>`+
+    log.map(e=>`<div style="display:flex;gap:12px;padding:10px 14px;background:var(--surface2);border-radius:var(--r2);margin-bottom:6px;font-size:.83rem">
+      <span style="color:var(--text3);white-space:nowrap;font-family:'DM Mono',monospace">${timeOnly(e.time)}</span>
+      <span>${e.msg}</span>
+    </div>`).join('');
+}
+
+function renderAdminSettings(el){
+  el.innerHTML=`<div class="card">
+    <div class="card-title">⚙ Platform Settings</div>
+    <div style="margin-top:14px;display:flex;flex-direction:column;gap:12px">
+      <div style="padding:14px;background:var(--surface2);border-radius:var(--r2)">
+        <div style="font-weight:700;font-size:.9rem;margin-bottom:4px">Admin Credentials</div>
+        <div style="font-size:.82rem;color:var(--text3);margin-bottom:10px">Current username: <strong>${ADMIN_USER}</strong> · Change in source code before deploying</div>
+      </div>
+      <div style="padding:14px;background:var(--surface2);border-radius:var(--r2)">
+        <div style="font-weight:700;font-size:.9rem;margin-bottom:4px">Free Plan Limits</div>
+        <div style="font-size:.82rem;color:var(--text3)">First <strong>50 tokens</strong> or <strong>1 month</strong> free, whichever comes first</div>
+        <div style="font-size:.82rem;color:var(--text3);margin-top:4px">After that: <strong>₹500/month</strong> for unlimited tokens</div>
+      </div>
+      <div style="padding:14px;background:var(--surface2);border-radius:var(--r2)">
+        <div style="font-weight:700;font-size:.9rem;margin-bottom:4px">Platform Stats</div>
+        <div style="font-size:.82rem;color:var(--text3)">Total vendors: ${state.vendors.length} · Paid: ${state.vendors.filter(v=>v.plan==='paid').length} · Free: ${state.vendors.filter(v=>v.plan!=='paid').length}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// Admin actions
+function approveVendor(id){
+  const v=state.vendors.find(x=>x.id===id); if(!v)return;
+  v.status='approved'; v.isOpen=false;
+  if(!v.planStart) v.planStart=new Date().toISOString();
+  logActivity(`Vendor approved: ${v.name} (${v.city})`);
+  save(); renderAdminDashboard(); toast(`✅ ${v.name} approved!`);
+}
+function suspendVendor(id){
+  const v=state.vendors.find(x=>x.id===id); if(!v)return;
+  adminConfirm(`Suspend "${v.name}"?`,'This will prevent the vendor from accepting queues.',()=>{
+    v.status='suspended'; v.isOpen=false;
+    logActivity(`Vendor suspended: ${v.name}`);
+    save(); renderAdminDashboard(); toast(`🚫 ${v.name} suspended`);
+  },'Suspend','btn-danger');
+}
+function rejectVendor(id){
+  const v=state.vendors.find(x=>x.id===id); if(!v)return;
+  adminConfirm(`Reject & delete "${v.name}"?`,'This will permanently remove this vendor registration.',()=>{
+    logActivity(`Vendor rejected & removed: ${v.name}`);
+    state.vendors=state.vendors.filter(x=>x.id!==id);
+    save(); renderAdminDashboard(); toast(`✕ Vendor rejected and removed`);
+  },'Reject','btn-danger');
+}
+function deleteVendor(id){
+  const v=state.vendors.find(x=>x.id===id); if(!v)return;
+  adminConfirm(`Delete "${v.name}" permanently?`,'All queue data for this vendor will be lost.',()=>{
+    logActivity(`Vendor deleted: ${v.name}`);
+    state.vendors=state.vendors.filter(x=>x.id!==id);
+    save(); renderAdminDashboard(); toast(`🗑️ Vendor deleted`);
+  },'Delete','btn-danger');
+}
+
+function openAdminEdit(id){
+  const v=state.vendors.find(x=>x.id===id); if(!v)return;
+  ['id','name','cat','city','loc','open','close','slot','icon','plan'].forEach(f=>{
+    const el=gv('ae-'+f); if(el) el.value=v[f]||'';
+  });
+  gv('ae-status').value=v.status||'pending';
+  gv('ae-desc').value=v.desc||'';
+  gv('ae-pass').value='';
+  gv('admin-edit-modal').classList.add('open');
+}
+function closeAdminEditModal(){ gv('admin-edit-modal').classList.remove('open'); }
+function saveAdminEdit(){
+  const id=val('ae-id');
+  const v=state.vendors.find(x=>x.id===id); if(!v)return;
+  const newPass=val('ae-pass').trim();
+  v.name=val('ae-name')||v.name;
+  v.cat=val('ae-cat')||v.cat;
+  v.desc=val('ae-desc');
+  v.city=val('ae-city')||v.city;
+  v.loc=val('ae-loc')||v.loc;
+  v.open=val('ae-open')||v.open;
+  v.close=val('ae-close')||v.close;
+  v.slot=parseInt(val('ae-slot'))||v.slot;
+  v.icon=val('ae-icon')||v.icon;
+  v.plan=val('ae-plan')||v.plan;
+  const newStatus=val('ae-status');
+  if(newStatus!==v.status){
+    if(newStatus==='approved'&&!v.planStart) v.planStart=new Date().toISOString();
+    v.status=newStatus;
+    if(newStatus!=='approved') v.isOpen=false;
+  }
+  if(newPass) v.pass=newPass;
+  logActivity(`Admin edited vendor: ${v.name}${newPass?' (password reset)':''}`);
+  save(); closeAdminEditModal(); renderAdminDashboard();
+  toast(`💾 Changes saved for ${v.name}${newPass?' — password reset':''}!`);
+}
+
+function adminConfirm(title,body,onConfirm,btnLabel='Confirm',btnClass='btn-danger'){
+  gv('acm-title').textContent=title;
+  gv('acm-body').textContent=body;
+  const btn=gv('acm-btn');
+  btn.textContent=btnLabel;
+  btn.className='btn '+btnClass;
+  btn.onclick=()=>{ gv('admin-confirm-modal').classList.remove('open'); onConfirm(); };
+  gv('admin-confirm-modal').classList.add('open');
+}
+
+function dateStr(iso){ try{ return new Date(iso).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}); }catch(e){return iso||'—';} }
+function timeOnly(iso){ try{ return new Date(iso).toLocaleString('en-IN',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}); }catch(e){return '—';} }
+
+// ═══════════════ AUTO-REFRESH ═══════════════
+// Auto-refresh every 15s
+setInterval(()=>{
+  if(gv('screen-customer-token').classList.contains('active')) renderMyToken();
+  if(gv('screen-vendor-dashboard').classList.contains('active')) renderDashboard();
+  if(gv('screen-admin-dashboard').classList.contains('active')) renderAdminDashboard();
+},15000);
+
+
+
+
+
+
+
+</script>
+</body>
+</html>
